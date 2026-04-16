@@ -12,6 +12,7 @@ import (
 type Repository interface {
 	UserRepository
 	HabitRepository
+	StreakRepository
 }
 
 // RepositoryImpl implements Repository.
@@ -21,14 +22,17 @@ type RepositoryImpl struct {
 
 	UserRepository
 	HabitRepository
+	StreakRepository
 }
 
 // NewRepository creates a new Repository.
 func NewRepository(db *sql.DB, logger *zap.Logger) Repository {
+	streakRepository := NewStreakRepository(db, logger)
 	return &RepositoryImpl{
-		db:              db,
-		log:             logger,
-		UserRepository:  NewUserRepository(db, logger),
-		HabitRepository: NewHabitRepository(db, logger),
+		db:               db,
+		log:              logger,
+		UserRepository:   NewUserRepository(db, logger),
+		HabitRepository:  NewHabitRepository(db, logger, streakRepository),
+		StreakRepository: streakRepository,
 	}
 }

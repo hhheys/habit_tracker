@@ -13,6 +13,7 @@ import (
 type Service interface {
 	UserService
 	HabitService
+	StreakService
 }
 
 type serviceImpl struct {
@@ -21,6 +22,7 @@ type serviceImpl struct {
 
 	UserService
 	HabitService
+	StreakService
 }
 
 // NewService создаёт новый базовый сервис
@@ -29,7 +31,8 @@ func NewService(log *zap.Logger, repository postgres.Repository, jwt auth.JWTSer
 		log:        log,
 		repository: repository,
 
-		UserService:  NewUserService(log, jwt, repository),
-		HabitService: NewHabitService(log, repository),
+		UserService:   NewUserService(log, jwt, repository),
+		HabitService:  NewHabitService(log, repository),
+		StreakService: NewStreakService(log, repository),
 	}
 }

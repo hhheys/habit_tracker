@@ -6,7 +6,6 @@ type CreateHabitRequest struct {
 }
 
 type UpdateHabitRequest struct {
-	ID          uint   `form:"id" binding:"required"`
 	Title       string `form:"title" validate:"required"`
 	Description string `form:"description" validate:"required"`
 }
@@ -15,4 +14,9 @@ type GetAllHabitsRequest struct {
 	Page     int    `form:"page" binding:"omitempty,min=1"`
 	PageSize int    `form:"pageSize" binding:"omitempty,min=1,max=100"`
 	Search   string `form:"search" binding:"omitempty"`
+	Sort     string `form:"sort" binding:"omitempty"`
+}
+
+type GetUserHabitsRequest struct {
+	Sort string `form:"sort" binding:"omitempty"`
 }

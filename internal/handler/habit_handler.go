@@ -1,17 +1,25 @@
 package handler
 
 import (
+	"errors"
 	"habit-tracker/internal/dto/request"
 	appErrors "habit-tracker/internal/errors"
 	"habit-tracker/internal/service"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
 type HabitHandler interface {
+	UpdateHabit(c *gin.Context)
+	CreateHabit(c *gin.Context)
+	DeleteHabit(c *gin.Context)
+
 	GetAllHabits(c *gin.Context)
+	GetAllUserHabits(c *gin.Context)
+	AddUserHabit(c *gin.Context)
 }
 
 type habitHandler struct {
@@ -56,11 +64,123 @@ func (h *habitHandler) GetAllHabits(c *gin.Context) {
 	c.JSON(http.StatusOK, res)
 }
 
-//func (h *userHandler) CreateHabit(c *gin.Context) {
-//	file, err := c.FormFile("image")
-//	if err != nil {
-//		c.JSON(400, gin.H{"error": err.Error()})
-//		return
-//	}
-//
-//}
+func (h *habitHandler) CreateHabit(c *gin.Context) {
+	file, err := c.FormFile("image")
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	var req request.CreateHabitRequest
+	if err := c.ShouldBind(&req); err != nil {
+		_ = c.Error(err).SetType(gin.ErrorTypeBind)
+		return
+	}
+	res, err := h.service.CreateHabit(&req, file)
+	if err != nil {
+		_ = c.Error(err).SetType(gin.ErrorTypeBind)
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+func (h *habitHandler) UpdateHabit(c *gin.Context) {
+	file, err := c.FormFile("image")
+	if err != nil {
+		// если файл не обязателен — просто игнорируем
+		if errors.Is(err, http.ErrMissingFile) {
+			file = nil
+		} else {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	habitID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	var req request.UpdateHabitRequest
+	if err := c.ShouldBind(&req); err != nil {
+		_ = c.Error(err).SetType(gin.ErrorTypeBind)
+		return
+	}
+	res, err := h.service.UpdateHabit(uint(habitID), &req, file)
+	if err != nil {
+		_ = c.Error(err).SetType(gin.ErrorTypeBind)
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+func (h *habitHandler) DeleteHabit(c *gin.Context) {
+	habitID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	err = h.service.DeleteHabit(uint(habitID))
+	if err != nil {
+		_ = c.Error(err).SetType(gin.ErrorTypeBind)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{})
+}
+
+func (h *habitHandler) GetAllUserHabits(c *gin.Context) {
+	userIDRaw, exists := c.Get("userID")
+	if !exists {
+		_ = c.Error(appErrors.ErrUnauthorized)
+		return
+	}
+	userID, ok := userIDRaw.(uint)
+	if !ok {
+		_ = c.Error(appErrors.ErrUnauthorized)
+		return
+	}
+
+	var query request.GetUserHabitsRequest
+	query.Sort = ""
+
+	err := c.ShouldBindQuery(&query)
+	if err != nil {
+		_ = c.Error(err).SetType(gin.ErrorTypeBind)
+		return
+	}
+
+	res, err := h.service.GetAllUserHabits(userID, &query)
+	if err != nil {
+		_ = c.Error(err).SetType(gin.ErrorTypeBind)
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+func (h *habitHandler) AddUserHabit(c *gin.Context) {
+	userIDRaw, exists := c.Get("userID")
+	if !exists {
+		_ = c.Error(appErrors.ErrUnauthorized)
+		return
+	}
+	userID, ok := userIDRaw.(uint)
+	if !ok {
+		_ = c.Error(appErrors.ErrUnauthorized)
+		return
+	}
+
+	habitID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	err = h.service.AddUserHabit(userID, uint(habitID))
+	if err != nil {
+		_ = c.Error(err).SetType(gin.ErrorTypeBind)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{})
+}

@@ -21,7 +21,9 @@ func NewHabit(title, description string) *Habit {
 }
 
 type UserHabit struct {
+	ID      uint
 	UserID  uint
 	Habit   Habit
 	AddedAt time.Time
+	Streak  *Streak
 }

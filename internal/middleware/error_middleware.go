@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"go.uber.org/zap"
 )
 
 // ErrorInfo stores error information
@@ -24,7 +25,7 @@ var errorMap = map[error]ErrorInfo{
 }
 
 // ErrorHandler returns a middleware that handles errors
-func ErrorHandler() gin.HandlerFunc {
+func ErrorHandler(log *zap.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()
 
@@ -35,6 +36,7 @@ func ErrorHandler() gin.HandlerFunc {
 		var info ErrorInfo
 
 		err := c.Errors.Last().Err
+		log.Error("error", zap.Error(err))
 		var errs validator.ValidationErrors
 		if errors.As(err, &errs) {
 			info = ErrorInfo{

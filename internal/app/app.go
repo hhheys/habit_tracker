@@ -63,7 +63,7 @@ func NewApp(config config.Config) *App {
 
 // SetupRouter setup router for app
 func (app *App) SetupRouter() *gin.Engine {
-	return router.NewRouter(app.Handler, app.JWT)
+	return router.NewRouter(app.Handler, app.JWT, app.Logger)
 }
 
 // Run runs the application

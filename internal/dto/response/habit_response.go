@@ -1,6 +1,7 @@
 package response
 
 import (
+	"fmt"
 	"habit-tracker/internal/models"
 	"time"
 )
@@ -8,6 +9,39 @@ import (
 type AllHabitsResponse struct {
 	Habits     []*HabitResponse    `json:"habits"`
 	Pagination *PaginationResponse `json:"pagination,omitempty"`
+}
+
+type UserHabitsResponse struct {
+	Habits []*UserHabitResponse `json:"habits"`
+	//Pagination *PaginationResponse `json:"pagination,omitempty"`
+}
+
+type UserHabitResponse struct {
+	Habit   *HabitResponse  `json:"habit"`
+	AddedAt time.Time       `json:"added_at"`
+	Streak  *StreakResponse `json:"streak,omitempty"`
+}
+
+func NewUserHabitResponse(habit *models.UserHabit) *UserHabitResponse {
+	return &UserHabitResponse{
+		Habit: &HabitResponse{
+			ID:          habit.Habit.ID,
+			Title:       habit.Habit.Title,
+			Description: habit.Habit.Description,
+			IsAdded:     habit.Habit.IsAdded,
+			ImageURL:    fmt.Sprintf("%s%s", "/images/habits/", habit.Habit.ImageFilename),
+		},
+		AddedAt: habit.AddedAt,
+		Streak:  NewStreakResponse(habit.Streak, habit.ID),
+	}
+}
+
+func NewUserHabitsResponse(habits []*models.UserHabit) *UserHabitsResponse {
+	res := make([]*UserHabitResponse, len(habits))
+	for i, habit := range habits {
+		res[i] = NewUserHabitResponse(habit)
+	}
+	return &UserHabitsResponse{res}
 }
 
 type HabitResponse struct {
@@ -51,12 +85,6 @@ func NewHabitResponse(habit *models.Habit) *HabitResponse {
 		Description: habit.Description,
 		IsAdded:     habit.IsAdded,
 		CreatedAt:   habit.CreatedAt,
-		ImageURL:    habit.ImageFilename,
+		ImageURL:    fmt.Sprintf("%s%s", "/images/habits/", habit.ImageFilename),
 	}
-}
-
-type StreakResponse struct {
-	HabitID          uint `json:"habit_id"`
-	CurrentStreak    int  `json:"current_streak"`
-	IsConfirmedToday bool `json:"is_confirmed_today"`
 }

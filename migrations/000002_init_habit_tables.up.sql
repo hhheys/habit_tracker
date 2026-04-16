@@ -8,7 +8,7 @@ CREATE TABLE habit (
                          title VARCHAR(255) UNIQUE,
                          description TEXT,
                          created_at TIMESTAMP DEFAULT NOW(),
-                         image_filename VARCHAR(256)
+                          image_filename VARCHAR(256)
 );
 
 CREATE TABLE IF NOT EXISTS habit_tag (
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS habit_tag (
 
 CREATE TABLE IF NOT EXISTS user_habit (
                               id SERIAL PRIMARY KEY,
-                              "habit_id" INTEGER REFERENCES habit(id),
+                              "habit_id" INTEGER REFERENCES habit(id) ON DELETE CASCADE,
                               "user_id" INTEGER REFERENCES users(id),
                               "added_at" TIMESTAMP DEFAULT NOW()
 );

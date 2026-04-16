@@ -10,6 +10,7 @@ import (
 type Handler interface {
 	UserHandler
 	HabitHandler
+	StreakHandler
 }
 
 // HandlerImpl is the implementation of the Handler interface.
@@ -18,13 +19,15 @@ type handlerImpl struct {
 
 	UserHandler
 	HabitHandler
+	StreakHandler
 }
 
 // NewHandler returns a new Handler.
 func NewHandler(service service.Service, log *zap.Logger) Handler {
 	return &handlerImpl{
-		log:          log,
-		UserHandler:  NewUserHandler(log, service),
-		HabitHandler: NewHabitHandler(log, service),
+		log:           log,
+		UserHandler:   NewUserHandler(log, service),
+		HabitHandler:  NewHabitHandler(log, service),
+		StreakHandler: NewStreakHandler(log, service),
 	}
 }

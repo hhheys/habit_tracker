@@ -13,8 +13,8 @@ CREATE TABLE habit (
 
 CREATE TABLE IF NOT EXISTS habit_tag (
                              id SERIAL PRIMARY KEY,
-                             tag_id INTEGER REFERENCES tag(id),
-                             habit_id INTEGER REFERENCES habit(id)
+                             tag_id INTEGER REFERENCES tag(id) ON DELETE CASCADE,
+                             habit_id INTEGER REFERENCES habit(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS user_habit (
@@ -25,3 +25,6 @@ CREATE TABLE IF NOT EXISTS user_habit (
 );
 
 ALTER TABLE user_habit ADD CONSTRAINT unique_user_habit UNIQUE ("habit_id", "user_id");
+
+ALTER TABLE habit_tag
+    ADD CONSTRAINT habit_tag_unique UNIQUE (habit_id, tag_id);

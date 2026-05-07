@@ -45,12 +45,13 @@ func NewUserHabitsResponse(habits []*models.UserHabit) *UserHabitsResponse {
 }
 
 type HabitResponse struct {
-	ID          uint      `json:"id"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	IsAdded     bool      `json:"is_added"`
-	CreatedAt   time.Time `json:"created_at"`
-	ImageURL    string    `json:"image_url"`
+	ID          uint               `json:"id"`
+	Title       string             `json:"title"`
+	Description string             `json:"description"`
+	IsAdded     bool               `json:"is_added"`
+	CreatedAt   time.Time          `json:"created_at"`
+	ImageURL    string             `json:"image_url"`
+	Tags        []HabitTagResponse `json:"tags"`
 }
 
 type PaginationResponse struct {
@@ -79,12 +80,53 @@ func NewPaginationResponse(total int64, page, pageSize int) *PaginationResponse 
 }
 
 func NewHabitResponse(habit *models.Habit) *HabitResponse {
+	tags := make([]HabitTagResponse, len(habit.Tags))
+	for i, habitTag := range habit.Tags {
+		tags[i] = HabitTagResponse{
+			ID:   habitTag.ID,
+			Name: habitTag.Title,
+		}
+	}
 	return &HabitResponse{
 		ID:          habit.ID,
 		Title:       habit.Title,
 		Description: habit.Description,
 		IsAdded:     habit.IsAdded,
 		CreatedAt:   habit.CreatedAt,
+		Tags:        tags,
 		ImageURL:    fmt.Sprintf("%s%s", "/images/habits/", habit.ImageFilename),
 	}
+}
+
+type HabitTagResponse struct {
+	ID   uint   `json:"id"`
+	Name string `json:"name"`
+}
+
+type AllHabitTagsResponse struct {
+	Tags       []*HabitTagResponse `json:"tags"`
+	Pagination *PaginationResponse `json:"pagination,omitempty"`
+}
+
+func NewHabitTagResponse(tag *models.HabitTag) *HabitTagResponse {
+	return &HabitTagResponse{
+		ID:   tag.ID,
+		Name: tag.Title,
+	}
+}
+
+func NewHabitTagsResponse(tags []*models.HabitTag, pagination *PaginationResponse) *AllHabitTagsResponse {
+	res := make([]*HabitTagResponse, len(tags))
+	for i, tag := range tags {
+		res[i] = NewHabitTagResponse(tag)
+	}
+	return &AllHabitTagsResponse{
+		Tags:       res,
+		Pagination: pagination,
+	}
+}
+
+type EditHabitResponse struct {
+	ID   uint   `json:"id"`
+	Name string `json:"name"`
 }

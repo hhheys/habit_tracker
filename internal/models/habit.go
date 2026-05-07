@@ -10,6 +10,7 @@ type Habit struct {
 	Description   string
 	IsAdded       bool
 	CreatedAt     time.Time
+	Tags          []*HabitTag
 	ImageFilename string
 }
 
@@ -26,4 +27,9 @@ type UserHabit struct {
 	Habit   Habit
 	AddedAt time.Time
 	Streak  *Streak
+}
+
+type HabitTag struct {
+	ID    uint
+	Title string
 }

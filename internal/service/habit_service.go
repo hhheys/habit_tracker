@@ -31,6 +31,12 @@ type HabitService interface {
 	GetAllUserHabits(userID uint, query *request.GetUserHabitsRequest) (*response.UserHabitsResponse, error)
 	GetUserHabitByID(userID uint, habitID uint) (*response.UserHabitResponse, error)
 	AddUserHabit(userID, habitID uint) error
+
+	GetAllTags(req request.GetAllHabitTagsRequest) (*response.AllHabitTagsResponse, error)
+	CreateTag(tag *request.CreateTagRequest) (*response.HabitTagResponse, error)
+	GetTagByID(tagID uint) (*response.HabitTagResponse, error)
+	DeleteTag(tagID uint) error
+	EditTag(habitID uint, req *request.EditTagRequest) (*response.EditHabitResponse, error)
 }
 
 type habitService struct {
@@ -118,6 +124,11 @@ func (s *habitService) CreateHabit(r *request.CreateHabitRequest, image *multipa
 		return nil, err
 	}
 
+	err = s.repository.AddHabitTags(habitModel.ID, r.TagIDs)
+	if err != nil {
+		return nil, err
+	}
+
 	return response.NewHabitResponse(habitModel), nil
 }
 
@@ -152,6 +163,12 @@ func (s *habitService) UpdateHabit(habitID uint, r *request.UpdateHabitRequest, 
 		}
 		habit.ImageFilename = newImageFilename
 	}
+
+	err = s.repository.ReplaceHabitTags(habitID, r.TagIDs)
+	if err != nil {
+		return nil, err
+	}
+
 	return response.NewHabitResponse(habit), nil
 }
 
@@ -177,4 +194,45 @@ func (s *habitService) AddUserHabit(userID, habitID uint) error {
 		return err
 	}
 	return nil
+}
+
+func (s *habitService) GetAllTags(req request.GetAllHabitTagsRequest) (*response.AllHabitTagsResponse, error) {
+	tags, total, err := s.repository.GetAllTags(req)
+	if err != nil {
+		return nil, err
+	}
+
+	return response.NewHabitTagsResponse(tags, response.NewPaginationResponse(total, req.Page, req.PageSize)), nil
+}
+
+func (s *habitService) CreateTag(tag *request.CreateTagRequest) (*response.HabitTagResponse, error) {
+	tagModel := models.HabitTag{
+		Title: tag.Name,
+	}
+	err := s.repository.CreateTag(&tagModel)
+	if err != nil {
+		return nil, err
+	}
+	return &response.HabitTagResponse{ID: tagModel.ID, Name: tagModel.Title}, nil
+}
+
+func (s *habitService) DeleteTag(tagID uint) error {
+	return s.repository.DeleteTag(tagID)
+}
+
+func (s *habitService) EditTag(habitID uint, req *request.EditTagRequest) (*response.EditHabitResponse, error) {
+	habitModel := models.HabitTag{ID: habitID, Title: req.Name}
+	err := s.repository.EditTag(&habitModel)
+	if err != nil {
+		return nil, err
+	}
+	return &response.EditHabitResponse{ID: habitModel.ID, Name: habitModel.Title}, nil
+}
+
+func (s *habitService) GetTagByID(tagID uint) (*response.HabitTagResponse, error) {
+	tagModel, err := s.repository.GetTagByID(tagID)
+	if err != nil {
+		return nil, err
+	}
+	return response.NewHabitTagResponse(tagModel), nil
 }

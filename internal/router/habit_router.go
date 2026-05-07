@@ -21,6 +21,11 @@ func NewHabitRouter(r *gin.Engine, h handler.Handler, jwtService auth.JWTService
 
 	g.POST("/:id/add", middleware.RoleAuthMiddleware(string(models.UserRoleDefault)), h.AddUserHabit)
 
+	g.GET("/tag/all", h.GetAllTags)
+	g.POST("/tag", middleware.RoleAuthMiddleware(string(models.UserRoleAdmin)), h.CreateTag)
+	g.PUT("/tag/:id", middleware.RoleAuthMiddleware(string(models.UserRoleAdmin)), h.EditTag)
+	g.DELETE("/tag/:id", middleware.RoleAuthMiddleware(string(models.UserRoleAdmin)), h.DeleteTag)
+
 	g.GET("/my", h.GetAllUserHabits)
 	g.POST("/confirm/:id", h.CreateDailyConfirmation)
 }

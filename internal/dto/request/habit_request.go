@@ -3,20 +3,35 @@ package request
 type CreateHabitRequest struct {
 	Title       string `form:"title" binding:"required"`
 	Description string `form:"description" binding:"required"`
+	TagIDs      []int  `form:"tags"`
 }
 
 type UpdateHabitRequest struct {
 	Title       string `form:"title" validate:"required"`
 	Description string `form:"description" validate:"required"`
+	TagIDs      []int  `form:"tags"`
 }
 
 type GetAllHabitsRequest struct {
-	Page     int    `form:"page" binding:"omitempty,min=1"`
-	PageSize int    `form:"pageSize" binding:"omitempty,min=1,max=100"`
-	Search   string `form:"search" binding:"omitempty"`
-	Sort     string `form:"sort" binding:"omitempty"`
+	TagIDs []int `form:"tag_ids"`
+	SortRequest
+	SearchRequest
+	PageRequest
 }
 
 type GetUserHabitsRequest struct {
-	Sort string `form:"sort" binding:"omitempty"`
+	SortRequest
+}
+
+type GetAllHabitTagsRequest struct {
+	SearchRequest
+	PageRequest
+}
+
+type CreateTagRequest struct {
+	Name string `json:"title" binding:"required"`
+}
+
+type EditTagRequest struct {
+	Name string `json:"title" binding:"required"`
 }

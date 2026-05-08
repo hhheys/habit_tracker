@@ -14,6 +14,7 @@ import (
 type StreakRepository interface {
 	CreateDailyConfirmation(confirmation *models.DailyConfirmation) error
 	GetStreak(userHabitID uint) (*models.Streak, error)
+	GetHeatMap(userID uint) ([]models.HeatmapDay, error)
 }
 
 type streakRepositoryImpl struct {
@@ -120,4 +121,36 @@ SELECT
 		return nil, err
 	}
 	return &streak, nil
+}
+
+func (r *streakRepositoryImpl) GetHeatMap(userID uint) ([]models.HeatmapDay, error) {
+	res := make([]models.HeatmapDay, 0)
+
+	rows, err := r.DB.Query(`SELECT 
+            DATE(confirmed_at) as date,
+            COUNT(*) as count
+        FROM daily_confirmation dc
+        JOIN user_habit uh ON uh.id = dc.user_habit_id
+        WHERE uh.user_id = $1
+          AND confirmed_at >= CURRENT_DATE - INTERVAL '120 days'
+        GROUP BY DATE(confirmed_at)
+        ORDER BY date
+        `, userID)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var day models.HeatmapDay
+		err = rows.Scan(&day.Date, &day.Count)
+		if err != nil {
+			if !errors.Is(err, sql.ErrNoRows) {
+				return nil, err
+			}
+			return nil, err
+		}
+		res = append(res, day)
+	}
+	return res, nil
 }

@@ -12,6 +12,7 @@ import (
 
 type StreakHandler interface {
 	CreateDailyConfirmation(c *gin.Context)
+	GetHeatMap(c *gin.Context)
 }
 
 type streakHandler struct {
@@ -50,4 +51,24 @@ func (s *streakHandler) CreateDailyConfirmation(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusCreated)
+}
+
+func (s *streakHandler) GetHeatMap(c *gin.Context) {
+	userIDRaw, exists := c.Get("userID")
+	if !exists {
+		_ = c.Error(appErrors.ErrUnauthorized)
+		return
+	}
+	userID, ok := userIDRaw.(uint)
+	if !ok {
+		_ = c.Error(appErrors.ErrUnauthorized)
+		return
+	}
+
+	res, err := s.service.GetHeatMap(userID)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	c.JSON(http.StatusOK, res)
 }

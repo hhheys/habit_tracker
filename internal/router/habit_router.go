@@ -28,4 +28,6 @@ func NewHabitRouter(r *gin.Engine, h handler.Handler, jwtService auth.JWTService
 
 	g.GET("/my", h.GetAllUserHabits)
 	g.POST("/confirm/:id", h.CreateDailyConfirmation)
+
+	g.GET("/heatmap", h.GetHeatMap)
 }

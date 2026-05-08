@@ -10,6 +10,7 @@ import (
 
 type StreakService interface {
 	CreateDailyConfirmation(userID, habitID uint) error
+	GetHeatMap(userID uint) ([]models.HeatmapDay, error)
 }
 
 type streakService struct {
@@ -46,4 +47,8 @@ func (s *streakService) GetStreak(userID, habitID uint) (*response.StreakRespons
 		return nil, err
 	}
 	return response.NewStreakResponse(streak, userHabit.Habit.ID), nil
+}
+
+func (s *streakService) GetHeatMap(userID uint) ([]models.HeatmapDay, error) {
+	return s.repository.GetHeatMap(userID)
 }

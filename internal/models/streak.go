@@ -14,3 +14,8 @@ type Streak struct {
 	CurrentStreak    *int
 	IsConfirmedToday bool
 }
+
+type HeatmapDay struct {
+	Date  string `json:"date"`
+	Count int    `json:"count"`
+}

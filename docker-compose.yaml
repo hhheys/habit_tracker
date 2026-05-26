@@ -3,13 +3,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: room-service
+    container_name: habit-tracker
     ports:
       - "8080:8080"
     environment:
-      SERVER_HOST: "${SERVER_HOST:-0.0.0.0}"
+      SERVER_HOST: "0.0.0.0"
       SERVER_PORT: "${SERVER_PORT:-8080}"
-      POSTGRES_HOST: "${POSTGRES_HOST:-db}"
+      POSTGRES_HOST: "habit-tracker-db"
       POSTGRES_PORT: "${POSTGRES_PORT:-5432}"
       POSTGRES_USER: "${POSTGRES_USER:-postgres}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-postgres}"
@@ -17,7 +17,10 @@ services:
       POSTGRES_SSL_MODE: "${POSTGRES_SSL_MODE:-disable}"
       JWT_SECRET: "${JWT_SECRET:-secret-change-me-in-production}"
     depends_on:
-      - db
+      habit-tracker-db:
+        condition: service_healthy
+    volumes:
+      - habit-tracker-images:/app/images
     restart: unless-stopped
     networks:
       - internal
@@ -28,14 +31,17 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_HOST: ${POSTGRES_HOST:-db}
-      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
       POSTGRES_DB: ${POSTGRES_DB:-habit_tracker}
     ports:
       - "5432:5432"
     volumes:
       - habit-tracker-db:/var/lib/postgresql/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-habit_tracker}"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
     networks:
       - internal
 
@@ -44,3 +50,4 @@ networks:
 
 volumes:
   habit-tracker-db:
+  habit-tracker-images:

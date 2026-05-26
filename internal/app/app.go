@@ -3,13 +3,18 @@ package app
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"habit-tracker/config"
 	"habit-tracker/config/logger"
-	"habit-tracker/internal/auth"
-	"habit-tracker/internal/handler"
-	"habit-tracker/internal/repository/postgres"
-	"habit-tracker/internal/router"
-	"habit-tracker/internal/service"
+	authadapter "habit-tracker/internal/adapter/auth"
+	v1handler "habit-tracker/internal/adapter/http/v1/handler"
+	v1router "habit-tracker/internal/adapter/http/v1/router"
+	"habit-tracker/internal/adapter/postgres"
+	authuc "habit-tracker/internal/usecase/auth"
+	habituc "habit-tracker/internal/usecase/habit"
+	streakuc "habit-tracker/internal/usecase/streak"
+	taguc "habit-tracker/internal/usecase/tag"
+	userhabituc "habit-tracker/internal/usecase/userhabit"
 	"log"
 	"net"
 	"net/http"
@@ -19,86 +24,81 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
-
 	_ "github.com/lib/pq"
+	"go.uber.org/zap"
 )
 
-// App - main app structure
 type App struct {
-	DB *sql.DB
-
-	Config config.Config
-	Logger *zap.Logger
-
-	JWT auth.JWTService
-
-	Handler handler.Handler
+	DB      *sql.DB
+	Config  config.Config
+	Logger  *zap.Logger
+	JWT     *authadapter.JwtService
+	Handler v1handler.Handler
 }
 
-// NewApp - create new app instance
-func NewApp(config config.Config) *App {
+func NewApp(cfg config.Config) *App {
 	zapLogger, err := logger.NewLogger()
 	if err != nil {
 		panic(err)
 	}
+	db := postgres.CreateConnection(cfg)
+	if db == nil {
+		panic("could not connect to postgres")
+	}
+	repositories := postgres.NewRepositories(db, zapLogger)
+	hasher := authadapter.NewHasher()
+	jwt := authadapter.NewJWTService(cfg.JWTSecret, time.Hour)
 
-	dbConn := postgres.CreateConnection(config)
-	appRepository := postgres.NewRepository(dbConn, zapLogger)
-	jwtService := auth.NewJWTService(config.JWTSecret, time.Minute*60)
-	appService := service.NewService(zapLogger, appRepository, jwtService)
-	appHandler := handler.NewHandler(appService, zapLogger)
+	authService := authuc.NewService(
+		repositories.Users,
+		repositories.RefreshSessions,
+		hasher,
+		hasher,
+		jwt,
+		authadapter.NewRefreshTokenGenerator(),
+	)
+	habitService := habituc.NewService(repositories.Habits, repositories.Streaks)
+	userHabitService := userhabituc.NewService(repositories.UserHabits, repositories.Streaks)
+	streakService := streakuc.NewService(repositories.Streaks)
+	tagService := taguc.NewService(repositories.Tags)
 
 	return &App{
-		DB: dbConn,
-
-		Config: config,
-		Logger: zapLogger,
-
-		JWT: jwtService,
-
-		Handler: appHandler,
+		DB:      db,
+		Config:  cfg,
+		Logger:  zapLogger,
+		JWT:     jwt,
+		Handler: v1handler.NewHandler(authService, habitService, userHabitService, &streakService, &tagService, zapLogger),
 	}
 }
 
-// SetupRouter setup router for app
 func (app *App) SetupRouter() *gin.Engine {
-	return router.NewRouter(app.Handler, app.JWT, app.Logger)
+	return v1router.NewRouter(app.Handler, app.JWT, app.Logger)
 }
 
-// Run runs the application
 func (app *App) Run() {
 	postgres.Migrate(app.DB)
-
 	r := app.SetupRouter()
-
+	logger.WithGin(app.Logger, r)
 	srv := &http.Server{
 		Addr:    net.JoinHostPort(app.Config.ServerHost, app.Config.ServerPort),
 		Handler: r,
 	}
 
-	logger.WithGin(app.Logger, r)
+	go func() {
+		app.Logger.Info("starting server", zap.String("address", srv.Addr))
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			app.Logger.Fatal("server failed", zap.Error(err))
+		}
+	}()
 
-	app.Logger.Info("Starting server", zap.String("host", app.Config.ServerHost), zap.String("port", app.Config.ServerPort))
-
-	if err := r.Run(net.JoinHostPort(app.Config.ServerHost, app.Config.ServerPort)); err != nil {
-		app.Logger.Error("Server failed", zap.Error(err))
-	}
-
-	// Graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("Shutdown signal received...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-		_ = app.Logger.Sync()
-		cancel()
-		log.Printf("Server forced to shutdown: %v", err)
-		return
+		log.Printf("server forced to shutdown: %v", err)
 	}
-
-	log.Println("Server exiting gracefully")
+	_ = app.Logger.Sync()
 }

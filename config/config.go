@@ -21,9 +21,7 @@ type Config struct {
 
 // NewConfig creates a new Config instance.
 func NewConfig() Config {
-	if err := godotenv.Load(); err != nil {
-		log.Fatal("No .env files found")
-	}
+	_ = godotenv.Load()
 	return Config{
 		ServerHost:   getEnvOrFatal("SERVER_HOST"),
 		ServerPort:   getEnvOrFatal("SERVER_PORT"),

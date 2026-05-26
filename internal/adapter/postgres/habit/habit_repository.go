@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"habit-tracker/internal/domain"
-	habituc "habit-tracker/internal/usecase/habit"
 	"strings"
 
 	"github.com/lib/pq"
@@ -22,27 +21,34 @@ func NewRepository(db *sql.DB, log *zap.Logger) *Repository {
 	return &Repository{db: db, log: log}
 }
 
-func (r *Repository) List(ctx context.Context, params habituc.ListHabitsParams) ([]*domain.Habit, int64, error) {
-	search := "%" + params.Search + "%"
+func (r *Repository) List(ctx context.Context, filter domain.HabitListFilter) ([]*domain.Habit, int64, error) {
+	search := "%" + filter.Search + "%"
+	tagIDs := pq.Array(pgIDs(filter.TagIDs))
 	var total int64
 	err := r.db.QueryRowContext(ctx, `
 		SELECT COUNT(*)
 		FROM habit h
-		WHERE h.title ILIKE $1 OR h.description ILIKE $1`, search,
+		WHERE (h.title ILIKE $1 OR h.description ILIKE $1)
+		  AND (COALESCE(cardinality($2::int[]), 0) = 0 OR EXISTS (
+			  SELECT 1 FROM habit_tag ht WHERE ht.habit_id = h.id AND ht.tag_id = ANY($2::int[])
+		  ))`, search, tagIDs,
 	).Scan(&total)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	orderBy := listOrder(params.SortBy, params.SortOrder)
+	orderBy := listOrder(filter.SortBy, filter.SortOrder)
 	query := fmt.Sprintf(`
 		SELECT h.id, h.title, h.description, h.created_at, h.image_filename,
-		       EXISTS (SELECT 1 FROM user_habit uh WHERE uh.habit_id = h.id AND uh.user_id = $2)
+		       EXISTS (SELECT 1 FROM user_habit uh WHERE uh.habit_id = h.id AND uh.user_id = $3)
 		FROM habit h
-		WHERE h.title ILIKE $1 OR h.description ILIKE $1
+		WHERE (h.title ILIKE $1 OR h.description ILIKE $1)
+		  AND (COALESCE(cardinality($2::int[]), 0) = 0 OR EXISTS (
+			  SELECT 1 FROM habit_tag ht WHERE ht.habit_id = h.id AND ht.tag_id = ANY($2::int[])
+		  ))
 		ORDER BY %s
-		LIMIT $3 OFFSET $4`, orderBy)
-	rows, err := r.db.QueryContext(ctx, query, search, params.UserID, params.Limit, params.Offset)
+		LIMIT $4 OFFSET $5`, orderBy)
+	rows, err := r.db.QueryContext(ctx, query, search, tagIDs, filter.UserID, filter.Limit, filter.Offset)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -63,12 +69,13 @@ func (r *Repository) List(ctx context.Context, params habituc.ListHabitsParams) 
 	return habits, total, rows.Err()
 }
 
-func (r *Repository) GetByID(ctx context.Context, id uint) (*domain.Habit, error) {
+func (r *Repository) GetByID(ctx context.Context, id, userID uint) (*domain.Habit, error) {
 	var h domain.Habit
 	err := r.db.QueryRowContext(ctx, `
-		SELECT id, title, description, created_at, image_filename
-		FROM habit WHERE id = $1`, id,
-	).Scan(&h.ID, &h.Title, &h.Description, &h.CreatedAt, &h.ImageFilename)
+		SELECT h.id, h.title, h.description, h.created_at, h.image_filename,
+		       EXISTS (SELECT 1 FROM user_habit uh WHERE uh.habit_id = h.id AND uh.user_id = $2)
+		FROM habit h WHERE h.id = $1`, id, userID,
+	).Scan(&h.ID, &h.Title, &h.Description, &h.CreatedAt, &h.ImageFilename, &h.IsAdded)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, domain.ErrHabitNotFound
 	}
@@ -107,10 +114,10 @@ func (r *Repository) Create(ctx context.Context, h *domain.Habit) error {
 	return tx.Commit()
 }
 
-func (r *Repository) Update(ctx context.Context, input *habituc.UpdateHabitInput) (*domain.Habit, error) {
+func (r *Repository) Update(ctx context.Context, h *domain.Habit, addTagIDs, removeTagIDs []uint) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer tx.Rollback()
 
@@ -119,37 +126,37 @@ func (r *Repository) Update(ctx context.Context, input *habituc.UpdateHabitInput
 		SET title = $1, description = $2,
 		    image_filename = COALESCE(NULLIF($3, ''), image_filename)
 		WHERE id = $4`,
-		input.Title, input.Description, input.ImageFilename, input.ID,
+		h.Title, h.Description, h.ImageFilename, h.ID,
 	)
 	if isUniqueViolation(err) {
-		return nil, domain.ErrHabitAlreadyExists
+		return domain.ErrHabitAlreadyExists
 	}
 	if err != nil {
-		return nil, err
+		return err
 	}
 	n, err := result.RowsAffected()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if n == 0 {
-		return nil, domain.ErrHabitNotFound
+		return domain.ErrHabitNotFound
 	}
-	if len(input.RemoveTagIDs) > 0 {
+	if len(removeTagIDs) > 0 {
 		_, err = tx.ExecContext(ctx, `
 			DELETE FROM habit_tag WHERE habit_id = $1 AND tag_id = ANY($2)`,
-			input.ID, pq.Array(pgIDs(input.RemoveTagIDs)),
+			h.ID, pq.Array(pgIDs(removeTagIDs)),
 		)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
-	if err := insertTags(ctx, tx, input.ID, input.AddTagIDs); err != nil {
-		return nil, err
+	if err := insertTags(ctx, tx, h.ID, addTagIDs); err != nil {
+		return err
 	}
 	if err := tx.Commit(); err != nil {
-		return nil, err
+		return err
 	}
-	return r.GetByID(ctx, input.ID)
+	return nil
 }
 
 func (r *Repository) DeleteByID(ctx context.Context, id uint) error {

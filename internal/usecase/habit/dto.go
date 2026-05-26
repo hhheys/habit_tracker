@@ -4,6 +4,7 @@ import "habit-tracker/internal/domain"
 
 type ListHabitsParams struct {
 	UserID    uint
+	TagIDs    []uint
 	Search    string
 	SortBy    string
 	SortOrder string

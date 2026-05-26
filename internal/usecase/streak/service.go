@@ -18,5 +18,7 @@ func (s Service) CreateDailyConfirmation(ctx context.Context, input DailyConfirm
 }
 
 func (s Service) GetHeatmap(ctx context.Context, input HeatmapInput) ([]*domain.HeatmapDay, error) {
-	return s.streak.GetHeatmap(ctx, input)
+	return s.streak.GetHeatmap(ctx, domain.HeatmapFilter{
+		UserID: input.UserID, StartDate: input.StartDate, EndDate: input.EndDate,
+	})
 }

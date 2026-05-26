@@ -14,6 +14,7 @@ type UpdateHabitRequest struct {
 }
 
 type GetAllHabitsRequest struct {
+	TagIDs []uint `form:"tag_ids"`
 	SortRequest
 	SearchRequest
 	PageRequest

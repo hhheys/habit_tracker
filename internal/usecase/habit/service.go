@@ -31,7 +31,10 @@ func validatePagination(limit, offset int) (int, int) {
 func (s *Service) ListHabits(ctx context.Context, input ListHabitsParams) (ListHabitsOutput, int64, error) {
 	input.Limit, input.Offset = validatePagination(input.Limit, input.Offset)
 
-	habits, total, err := s.habit.List(ctx, input)
+	habits, total, err := s.habit.List(ctx, domain.HabitListFilter{
+		UserID: input.UserID, TagIDs: input.TagIDs, Search: input.Search,
+		SortBy: input.SortBy, SortOrder: input.SortOrder, Limit: input.Limit, Offset: input.Offset,
+	})
 	if err != nil {
 		return ListHabitsOutput{}, 0, err
 	}
@@ -48,8 +51,8 @@ func (s *Service) AddHabit(ctx context.Context, id uint) (*domain.Streak, error)
 	return s.streak.GetStreak(ctx, id)
 }
 
-func (s *Service) GetByID(ctx context.Context, id uint) (*domain.Habit, error) {
-	return s.habit.GetByID(ctx, id)
+func (s *Service) GetByID(ctx context.Context, id, userID uint) (*domain.Habit, error) {
+	return s.habit.GetByID(ctx, id, userID)
 }
 
 func (s *Service) Create(ctx context.Context, habit *CreateHabitInput) (*domain.Habit, error) {
@@ -74,7 +77,16 @@ func (s *Service) Create(ctx context.Context, habit *CreateHabitInput) (*domain.
 }
 
 func (s *Service) Update(ctx context.Context, habit *UpdateHabitInput) (*domain.Habit, error) {
-	return s.habit.Update(ctx, habit)
+	h := &domain.Habit{
+		ID:            habit.ID,
+		Title:         habit.Title,
+		Description:   habit.Description,
+		ImageFilename: habit.ImageFilename,
+	}
+	if err := s.habit.Update(ctx, h, habit.AddTagIDs, habit.RemoveTagIDs); err != nil {
+		return nil, err
+	}
+	return s.habit.GetByID(ctx, h.ID, 0)
 }
 
 func (s *Service) DeleteByID(ctx context.Context, id uint) error {

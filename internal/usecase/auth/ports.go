@@ -27,7 +27,7 @@ type UserRepository interface {
 type RefreshSessionRepository interface {
 	Create(ctx context.Context, session *domain.RefreshSession) error
 	GetByTokenHash(ctx context.Context, tokenHash string) (*domain.RefreshSession, error)
-	Revoke(ctx context.Context, session *domain.RefreshSession) error
+	Rotate(ctx context.Context, tokenHash string, replacement *domain.RefreshSession) error
 }
 
 type AccessTokenGenerator interface {

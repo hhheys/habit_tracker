@@ -7,5 +7,5 @@ import (
 
 type Repository interface {
 	CreateDailyConfirmation(ctx context.Context, userID, habitID uint) (*domain.Streak, error)
-	GetHeatmap(ctx context.Context, input HeatmapInput) ([]*domain.HeatmapDay, error)
+	GetHeatmap(ctx context.Context, filter domain.HeatmapFilter) ([]*domain.HeatmapDay, error)
 }

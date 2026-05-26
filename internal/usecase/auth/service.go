@@ -35,23 +35,32 @@ func NewService(
 }
 
 func (s *Service) GenerateAuthTokens(ctx context.Context, subject *TokenSubject, session SessionInfoInput) (*TokenOutput, error) {
-	// Generate tokens
-	accessToken, err := s.accessTokens.GenerateToken(subject)
+	tokens, sessionInfo, err := s.buildAuthTokens(subject, session)
 	if err != nil {
 		return nil, err
+	}
+	if err := s.refreshSessions.Create(ctx, sessionInfo); err != nil {
+		return nil, err
+	}
+	return tokens, nil
+}
+
+func (s *Service) buildAuthTokens(subject *TokenSubject, session SessionInfoInput) (*TokenOutput, *domain.RefreshSession, error) {
+	accessToken, err := s.accessTokens.GenerateToken(subject)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	refreshToken, err := s.refreshTokens.GenerateToken(subject)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	tokenHash, err := s.tokenHasher.HashToken(refreshToken)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	// Save refresh token session
 	sessionInfo := domain.RefreshSession{
 		UserID:    subject.UserID,
 		TokenHash: tokenHash,
@@ -61,15 +70,10 @@ func (s *Service) GenerateAuthTokens(ctx context.Context, subject *TokenSubject,
 		Revoked:   false,
 	}
 
-	err = s.refreshSessions.Create(ctx, &sessionInfo)
-	if err != nil {
-		return nil, err
-	}
-
 	return &TokenOutput{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-	}, nil
+	}, &sessionInfo, nil
 }
 
 func (s *Service) Register(ctx context.Context, user *RegisterInput, session SessionInfoInput) (*RegisterOutput, error) {
@@ -182,15 +186,10 @@ func (s *Service) RefreshToken(ctx context.Context, input *RefreshTokenInput, se
 	}
 
 	if oldSession.Revoked {
-		return nil, ErrSessionRevoked
+		return nil, domain.ErrSessionRevoked
 	}
 	if time.Now().After(oldSession.ExpiresAt) {
-		return nil, ErrTokenExpired
-	}
-
-	err = s.refreshSessions.Revoke(ctx, oldSession)
-	if err != nil {
-		return nil, err
+		return nil, domain.ErrTokenExpired
 	}
 
 	u, err := s.users.GetByID(ctx, oldSession.UserID)
@@ -198,8 +197,11 @@ func (s *Service) RefreshToken(ctx context.Context, input *RefreshTokenInput, se
 		return nil, err
 	}
 
-	tokens, err := s.GenerateAuthTokens(ctx, &TokenSubject{UserID: u.ID, Role: u.Role}, SessionInfoInput{UserAgent: session.UserAgent, UserIP: session.UserIP})
+	tokens, replacement, err := s.buildAuthTokens(&TokenSubject{UserID: u.ID, Role: u.Role}, session)
 	if err != nil {
+		return nil, err
+	}
+	if err := s.refreshSessions.Rotate(ctx, tokenHash, replacement); err != nil {
 		return nil, err
 	}
 

@@ -31,9 +31,9 @@ var errorMap = map[error]ErrorInfo{
 	domain.ErrInvalidRole:           {"FORBIDDEN", http.StatusForbidden, ""},
 	domain.ErrNoPermissions:         {"FORBIDDEN", http.StatusForbidden, ""},
 	authuc.ErrInvalidCredentials:    {"UNAUTHORIZED", http.StatusUnauthorized, ""},
-	authuc.ErrSessionNotFound:       {"UNAUTHORIZED", http.StatusUnauthorized, ""},
-	authuc.ErrSessionRevoked:        {"UNAUTHORIZED", http.StatusUnauthorized, ""},
-	authuc.ErrTokenExpired:          {"UNAUTHORIZED", http.StatusUnauthorized, ""},
+	domain.ErrSessionNotFound:       {"UNAUTHORIZED", http.StatusUnauthorized, ""},
+	domain.ErrSessionRevoked:        {"UNAUTHORIZED", http.StatusUnauthorized, ""},
+	domain.ErrTokenExpired:          {"UNAUTHORIZED", http.StatusUnauthorized, ""},
 }
 
 func ErrorHandler(log *zap.Logger) gin.HandlerFunc {

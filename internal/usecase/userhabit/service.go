@@ -31,7 +31,10 @@ func validatePagination(limit, offset int) (int, int) {
 func (s *Service) List(ctx context.Context, input ListUserHabitsParams) (*ListUserHabitsOutput, error) {
 	input.Limit, input.Offset = validatePagination(input.Limit, input.Offset)
 
-	uHabits, total, err := s.userHabit.ListUserHabits(ctx, input)
+	uHabits, total, err := s.userHabit.ListUserHabits(ctx, domain.UserHabitListFilter{
+		UserID: input.UserID, Search: input.Search, SortBy: input.SortBy,
+		SortOrder: input.SortOrder, Limit: input.Limit, Offset: input.Offset,
+	})
 	if err != nil {
 		return nil, err
 	}

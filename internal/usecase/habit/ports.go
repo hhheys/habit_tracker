@@ -6,10 +6,10 @@ import (
 )
 
 type Repository interface {
-	List(ctx context.Context, params ListHabitsParams) ([]*domain.Habit, int64, error)
-	GetByID(ctx context.Context, id uint) (*domain.Habit, error)
+	List(ctx context.Context, filter domain.HabitListFilter) ([]*domain.Habit, int64, error)
+	GetByID(ctx context.Context, id, userID uint) (*domain.Habit, error)
 	Create(ctx context.Context, habit *domain.Habit) error
-	Update(ctx context.Context, habit *UpdateHabitInput) (*domain.Habit, error)
+	Update(ctx context.Context, habit *domain.Habit, addTagIDs, removeTagIDs []uint) error
 	DeleteByID(ctx context.Context, id uint) error
 }
 

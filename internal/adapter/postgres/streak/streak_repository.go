@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"habit-tracker/internal/domain"
-	streakuc "habit-tracker/internal/usecase/streak"
 
 	"github.com/lib/pq"
 	"go.uber.org/zap"
@@ -43,7 +42,7 @@ func (r *Repository) CreateDailyConfirmation(ctx context.Context, userID, habitI
 	return r.GetStreak(ctx, userHabitID)
 }
 
-func (r *Repository) GetHeatmap(ctx context.Context, input streakuc.HeatmapInput) ([]*domain.HeatmapDay, error) {
+func (r *Repository) GetHeatmap(ctx context.Context, filter domain.HeatmapFilter) ([]*domain.HeatmapDay, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT DATE(dc.confirmed_at), COUNT(*)
 		FROM daily_confirmation dc
@@ -52,7 +51,7 @@ func (r *Repository) GetHeatmap(ctx context.Context, input streakuc.HeatmapInput
 		  AND ($2 = '' OR DATE(dc.confirmed_at) >= $2::date)
 		  AND ($3 = '' OR DATE(dc.confirmed_at) <= $3::date)
 		GROUP BY DATE(dc.confirmed_at)
-		ORDER BY DATE(dc.confirmed_at)`, input.UserID, input.StartDate, input.EndDate)
+		ORDER BY DATE(dc.confirmed_at)`, filter.UserID, filter.StartDate, filter.EndDate)
 	if err != nil {
 		return nil, err
 	}

@@ -19,3 +19,9 @@ type HeatmapDay struct {
 	Date  time.Time `json:"date"`
 	Count int       `json:"count"`
 }
+
+type HeatmapFilter struct {
+	UserID    uint
+	StartDate string
+	EndDate   string
+}

@@ -58,7 +58,7 @@ func (h *habitHandler) GetAllHabits(c *gin.Context) {
 	}
 	limit, offset := paging(req.Page, req.PageSize)
 	output, _, err := h.habits.ListHabits(c.Request.Context(), habituc.ListHabitsParams{
-		UserID: userID, Search: req.Search, SortBy: req.SortBy, SortOrder: req.SortOrder, Limit: limit, Offset: offset,
+		UserID: userID, TagIDs: req.TagIDs, Search: req.Search, SortBy: req.SortBy, SortOrder: req.SortOrder, Limit: limit, Offset: offset,
 	})
 	if err != nil {
 		_ = c.Error(err)
@@ -72,7 +72,11 @@ func (h *habitHandler) GetHabitByID(c *gin.Context) {
 	if !ok {
 		return
 	}
-	habit, err := h.habits.GetByID(c.Request.Context(), id)
+	userID, ok := currentUserID(c)
+	if !ok {
+		return
+	}
+	habit, err := h.habits.GetByID(c.Request.Context(), id, userID)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -187,7 +191,11 @@ func (h *habitHandler) GetAllTags(c *gin.Context) {
 }
 
 func (h *habitHandler) GetTagByID(c *gin.Context) {
-	tag, err := h.tags.GetByID(c.Request.Context(), c.Param("id"))
+	id, ok := pathID(c)
+	if !ok {
+		return
+	}
+	tag, err := h.tags.GetByID(c.Request.Context(), id)
 	if err != nil {
 		_ = c.Error(err)
 		return

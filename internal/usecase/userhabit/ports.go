@@ -6,10 +6,8 @@ import (
 )
 
 type Repository interface {
-	ListUserHabits(ctx context.Context, params ListUserHabitsParams) ([]*domain.UserHabit, int64, error)
+	ListUserHabits(ctx context.Context, filter domain.UserHabitListFilter) ([]*domain.UserHabit, int64, error)
 	CreateUserHabit(ctx context.Context, habit *domain.UserHabit) error
-	//UpdateUserHabit(ctx context.Context, habit *UpdateUserHabitInput) (*domain.UserHabit, error)
-	//DeleteUserHabitByID(ctx context.Context, id uint) error
 }
 
 type StreakRepository interface {

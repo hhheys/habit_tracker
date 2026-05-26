@@ -1,12 +1,16 @@
 package auth
 
-import "errors"
+import (
+	"errors"
+
+	"habit-tracker/internal/domain"
+)
 
 var (
 	// ErrInvalidToken       = errors.New("invalid token")
 
 	ErrInvalidCredentials = errors.New("invalid credentials")
-	ErrTokenExpired       = errors.New("token expired")
-	ErrSessionNotFound    = errors.New("session not found")
-	ErrSessionRevoked     = errors.New("session revoked")
+	ErrTokenExpired       = domain.ErrTokenExpired
+	ErrSessionNotFound    = domain.ErrSessionNotFound
+	ErrSessionRevoked     = domain.ErrSessionRevoked
 )

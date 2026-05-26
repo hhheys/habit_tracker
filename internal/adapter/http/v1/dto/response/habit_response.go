@@ -87,8 +87,7 @@ type UserHabitsResponse struct {
 }
 
 type UserHabitResponse struct {
-	ID      uint            `json:"id"`
-	HabitID uint            `json:"habit_id"`
+	Habit   *HabitResponse  `json:"habit"`
 	AddedAt time.Time       `json:"added_at"`
 	Streak  *StreakResponse `json:"streak,omitempty"`
 }
@@ -97,8 +96,7 @@ func NewUserHabitsResponse(output *userhabituc.ListUserHabitsOutput) *UserHabits
 	items := make([]*UserHabitResponse, len(output.UserHabits))
 	for i, item := range output.UserHabits {
 		items[i] = &UserHabitResponse{
-			ID:      item.Habit.ID,
-			HabitID: item.Habit.HabitID,
+			Habit:   NewHabitResponse(item.Habit.Habit),
 			AddedAt: item.Habit.AddedAt,
 			Streak:  NewStreakResponse(item.Streak),
 		}

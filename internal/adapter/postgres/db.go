@@ -9,6 +9,7 @@ import (
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
 // CreateConnection creates a new connection to the database
@@ -34,13 +35,18 @@ func CreateConnection(config config.Config) *sql.DB {
 
 // Migrate applies migrations to the database
 func Migrate(conn *sql.DB) {
+	MigrateFrom(conn, "file://./migrations")
+}
+
+// MigrateFrom applies migrations from the given source URL to the database.
+func MigrateFrom(conn *sql.DB, sourceURL string) {
 	driver, err := postgres.WithInstance(conn, &postgres.Config{})
 	if err != nil {
 		panic(fmt.Sprintf("Couldn't create migration driver: %v", err))
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
-		"file://./migrations",
+		sourceURL,
 		"postgres",
 		driver,
 	)

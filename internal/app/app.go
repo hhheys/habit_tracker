@@ -37,14 +37,20 @@ type App struct {
 }
 
 func NewApp(cfg config.Config) *App {
-	zapLogger, err := logger.NewLogger()
-	if err != nil {
-		panic(err)
-	}
 	db := postgres.CreateConnection(cfg)
 	if db == nil {
 		panic("could not connect to postgres")
 	}
+
+	return NewAppWithDB(cfg, db)
+}
+
+func NewAppWithDB(cfg config.Config, db *sql.DB) *App {
+	zapLogger, err := logger.NewLogger()
+	if err != nil {
+		panic(err)
+	}
+
 	repositories := postgres.NewRepositories(db, zapLogger)
 	hasher := authadapter.NewHasher()
 	jwt := authadapter.NewJWTService(cfg.JWTSecret, time.Hour)

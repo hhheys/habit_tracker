@@ -27,13 +27,13 @@ services:
 
   habit-tracker-db:
     image: postgres:16-alpine
-    container_name: room-db
+    container_name: habit-tracker-db
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-habit_tracker}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - habit-tracker-db:/var/lib/postgresql/data
     restart: unless-stopped

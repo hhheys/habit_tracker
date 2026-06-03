@@ -62,14 +62,16 @@ func (r *Repository) GetCreated(ctx context.Context, limit int) ([]*events.Event
 		WHERE status = 'created'
 		  AND next_attempt_at <= NOW()
 		ORDER BY created_at
-		LIMIT $1`,
+		LIMIT $1 FOR UPDATE SKIP LOCKED`,
 		limit,
 	)
 	if err != nil {
 		r.log.Error("failed to get created outbox events", zap.Error(err))
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	result := make([]*events.Event, 0)
 

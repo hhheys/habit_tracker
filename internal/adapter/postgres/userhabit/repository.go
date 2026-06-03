@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"habit-tracker/internal/adapter/postgres/txmanager"
 	"habit-tracker/internal/domain"
 	"strings"
 
@@ -62,7 +63,8 @@ func (r *Repository) ListUserHabits(ctx context.Context, filter domain.UserHabit
 }
 
 func (r *Repository) CreateUserHabit(ctx context.Context, h *domain.UserHabit) error {
-	err := r.db.QueryRowContext(ctx, `
+	executorType := txmanager.ExecutorFromContext(ctx, r.db)
+	err := executorType.QueryRowContext(ctx, `
 		INSERT INTO user_habit (user_id, habit_id)
 		VALUES ($1, $2)
 		RETURNING id, added_at`, h.UserID, h.HabitID,

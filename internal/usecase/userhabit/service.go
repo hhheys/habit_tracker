@@ -2,16 +2,22 @@ package userhabit
 
 import (
 	"context"
+	"encoding/json"
 	"habit-tracker/internal/domain"
+	"habit-tracker/internal/domain/events"
+	"strconv"
+	"time"
 )
 
 type Service struct {
-	userHabit Repository
-	streak    StreakRepository
+	userHabit      Repository
+	streak         StreakRepository
+	eventPublisher EventPublisher
+	txManager      TXManager
 }
 
-func NewService(userHabit Repository, streak StreakRepository) *Service {
-	return &Service{userHabit: userHabit, streak: streak}
+func NewService(userHabit Repository, streak StreakRepository, publisher EventPublisher, txManager TXManager) *Service {
+	return &Service{userHabit: userHabit, streak: streak, eventPublisher: publisher, txManager: txManager}
 }
 
 // Поскольку бизнес логика может быть разной в засимости от сущности, сделаю валидацию отдельной для каждого юзкейса
@@ -75,9 +81,39 @@ func (s *Service) Add(ctx context.Context, input AddUserHabitInput) (*domain.Use
 		UserID:  input.UserID,
 		HabitID: input.HabitID,
 	}
-	err := s.userHabit.CreateUserHabit(ctx, &h)
+
+	err := s.txManager.WithTx(
+		ctx,
+		func(customContext context.Context) error {
+			createErr := s.userHabit.CreateUserHabit(customContext, &h)
+			if createErr != nil {
+				return createErr
+			}
+
+			eventPayload, jsonErr := json.Marshal(h)
+			if jsonErr != nil {
+				return jsonErr
+			}
+
+			event := events.Event{
+				OccurredAt:       time.Now().UTC(),
+				EventType:        events.EventTypeUserHabitAdded,
+				EventTypeVersion: 1,
+				PartitionKey:     strconv.Itoa(int(input.UserID)),
+				Payload:          eventPayload,
+			}
+
+			createErr = s.eventPublisher.Publish(customContext, &event)
+			if createErr != nil {
+				return createErr
+			}
+			return nil
+		},
+	)
+
 	if err != nil {
 		return nil, err
 	}
+
 	return &h, nil
 }

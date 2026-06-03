@@ -5,6 +5,7 @@ type UserRegisterRequest struct {
 	Username string `json:"username" binding:"required"`
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required"`
+	Timezone string `json:"timezone" binding:"required"`
 }
 
 // UserLoginRequest is the request body for user login.

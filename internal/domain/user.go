@@ -17,6 +17,7 @@ type User struct {
 	Email     string
 	Password  string
 	Role      UserRole
+	Timezone  *time.Location
 	CreatedAt time.Time
 	IsActive  bool
 }

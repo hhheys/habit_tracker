@@ -3,6 +3,7 @@ package postgres
 import (
 	"database/sql"
 	pghabit "habit-tracker/internal/adapter/postgres/habit"
+	pgmetric "habit-tracker/internal/adapter/postgres/metric"
 	pgoutbox "habit-tracker/internal/adapter/postgres/outbox"
 	pgsession "habit-tracker/internal/adapter/postgres/session"
 	pgstreak "habit-tracker/internal/adapter/postgres/streak"
@@ -21,6 +22,7 @@ type Repositories struct {
 	Streaks         *pgstreak.Repository
 	Tags            *pgtag.Repository
 	Outbox          *pgoutbox.Repository
+	Metrics         *pgmetric.Repository
 }
 
 func NewRepositories(db *sql.DB, log *zap.Logger) *Repositories {
@@ -32,5 +34,6 @@ func NewRepositories(db *sql.DB, log *zap.Logger) *Repositories {
 		Streaks:         pgstreak.NewRepository(db, log),
 		Tags:            pgtag.NewRepository(db),
 		Outbox:          pgoutbox.NewRepository(db, log),
+		Metrics:         pgmetric.NewRepository(db, log),
 	}
 }

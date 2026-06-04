@@ -14,6 +14,7 @@ import (
 	"habit-tracker/internal/adapter/postgres/txmanager"
 	authuc "habit-tracker/internal/usecase/auth"
 	habituc "habit-tracker/internal/usecase/habit"
+	metricuc "habit-tracker/internal/usecase/metric"
 	streakuc "habit-tracker/internal/usecase/streak"
 	taguc "habit-tracker/internal/usecase/tag"
 	userhabituc "habit-tracker/internal/usecase/userhabit"
@@ -39,7 +40,9 @@ type App struct {
 	Handler v1handler.Handler
 
 	KafkaProducer   *kafkaadapter.Producer
+	KafkaConsumer   *kafkaadapter.Consumer
 	OutboxPublisher outboxworker.EventPublisher
+	MetricService   *metricuc.Metric
 }
 
 func NewApp(cfg config.Config) *App {
@@ -62,6 +65,7 @@ func NewAppWithDB(cfg config.Config, db *sql.DB) *App {
 	jwt := authadapter.NewJWTService(cfg.JWTSecret, time.Hour)
 	txManager := txmanager.NewTXManager(db)
 	kafkaProducer := kafkaadapter.NewProducer(cfg.KafkaBrokers, zapLogger)
+	kafkaConsumer := kafkaadapter.NewConsumer(cfg.KafkaBrokers, zapLogger)
 	outboxPublisher := outboxworker.NewEventPublisher(repositories.Outbox, kafkaProducer, cfg.KafkaOutboxTopic, zapLogger)
 
 	authService := authuc.NewService(
@@ -74,8 +78,9 @@ func NewAppWithDB(cfg config.Config, db *sql.DB) *App {
 	)
 	habitService := habituc.NewService(repositories.Habits, repositories.Streaks)
 	userHabitService := userhabituc.NewService(repositories.UserHabits, repositories.Streaks, repositories.Outbox, txManager)
-	streakService := streakuc.NewService(repositories.Streaks)
+	streakService := streakuc.NewService(repositories.Streaks, repositories.Outbox, txManager)
 	tagService := taguc.NewService(repositories.Tags)
+	metricService := metricuc.NewEventService(repositories.Metrics, txManager, repositories.Outbox, repositories.UserHabits, zapLogger)
 
 	return &App{
 		DB:      db,
@@ -85,7 +90,9 @@ func NewAppWithDB(cfg config.Config, db *sql.DB) *App {
 		Handler: v1handler.NewHandler(authService, habitService, userHabitService, &streakService, &tagService, zapLogger),
 
 		KafkaProducer:   kafkaProducer,
+		KafkaConsumer:   kafkaConsumer,
 		OutboxPublisher: outboxPublisher,
+		MetricService:   metricService,
 	}
 }
 
@@ -106,6 +113,22 @@ func (app *App) Run() {
 			zap.Duration("interval", app.Config.OutboxPublishInterval),
 		)
 		app.OutboxPublisher.Run(workerCtx, app.Config.OutboxPublishInterval)
+	}()
+
+	go func() {
+		app.Logger.Info(
+			"starting metric event consumer",
+			zap.Strings("brokers", app.Config.KafkaBrokers),
+			zap.String("topic", app.Config.KafkaOutboxTopic),
+		)
+		if err := app.KafkaConsumer.ConsumeEvents(
+			workerCtx,
+			app.Config.KafkaOutboxTopic,
+			"metric-service",
+			app.MetricService.ProcessEvent,
+		); err != nil && !errors.Is(err, context.Canceled) {
+			app.Logger.Error("metric event consumer stopped", zap.Error(err))
+		}
 	}()
 
 	r := app.SetupRouter()
@@ -135,6 +158,9 @@ func (app *App) Run() {
 	}
 	if err := app.KafkaProducer.Close(); err != nil {
 		app.Logger.Error("failed to close kafka producer", zap.Error(err))
+	}
+	if err := app.KafkaConsumer.Close(); err != nil {
+		app.Logger.Error("failed to close kafka consumer", zap.Error(err))
 	}
 	_ = app.Logger.Sync()
 }

@@ -2,11 +2,10 @@ package userhabit
 
 import (
 	"context"
-	"encoding/json"
 	"habit-tracker/internal/domain"
 	"habit-tracker/internal/domain/events"
+	"habit-tracker/internal/usecase/eventpublisher"
 	"strconv"
-	"time"
 )
 
 type Service struct {
@@ -90,24 +89,13 @@ func (s *Service) Add(ctx context.Context, input AddUserHabitInput) (*domain.Use
 				return createErr
 			}
 
-			eventPayload, jsonErr := json.Marshal(h)
-			if jsonErr != nil {
-				return jsonErr
-			}
-
-			event := events.Event{
-				OccurredAt:       time.Now().UTC(),
-				EventType:        events.EventTypeUserHabitAdded,
-				EventTypeVersion: 1,
-				PartitionKey:     strconv.Itoa(int(input.UserID)),
-				Payload:          eventPayload,
-			}
-
-			createErr = s.eventPublisher.Publish(customContext, &event)
-			if createErr != nil {
-				return createErr
-			}
-			return nil
+			return eventpublisher.Publish(
+				customContext,
+				s.eventPublisher,
+				events.EventTypeUserHabitAdded,
+				strconv.Itoa(int(input.UserID)),
+				h,
+			)
 		},
 	)
 

@@ -37,20 +37,6 @@ CREATE TABLE "reaction" (
                             "timestamp" timestamp
 );
 
-CREATE TABLE "achievement" (
-                               "id" serial PRIMARY KEY,
-                               "title" varchar,
-                               "description" text,
-                               "condition" varchar
-);
-
-CREATE TABLE "user_achievement" (
-                                    "id" serial PRIMARY KEY,
-                                    "user_id" int,
-                                    "achievement_id" int,
-                                    "earned_at" timestamp
-);
-
 CREATE TABLE "reminder_type" (
                                  "id" serial PRIMARY KEY,
                                  "name" varchar,
@@ -81,10 +67,6 @@ ALTER TABLE "post" ADD FOREIGN KEY ("user_habit_id") REFERENCES "user_habit" ("i
 ALTER TABLE "reaction" ADD FOREIGN KEY ("post_id") REFERENCES "post" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "reaction" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id") DEFERRABLE INITIALLY IMMEDIATE;
-
-ALTER TABLE "user_achievement" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id") DEFERRABLE INITIALLY IMMEDIATE;
-
-ALTER TABLE "user_achievement" ADD FOREIGN KEY ("achievement_id") REFERENCES "achievement" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "reminder" ADD FOREIGN KEY ("id") REFERENCES "user_habit" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 

@@ -46,7 +46,12 @@ func (r *Repository) ListUserHabits(ctx context.Context, filter domain.UserHabit
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+			r.log.Error("failed to close rows", zap.Error(err))
+		}
+	}(rows)
 
 	habits := make([]*domain.UserHabit, 0)
 	for rows.Next() {
@@ -77,6 +82,34 @@ func (r *Repository) CreateUserHabit(ctx context.Context, h *domain.UserHabit) e
 		return domain.ErrHabitNotFound
 	}
 	return err
+}
+
+func (r *Repository) GetTotalUserHabits(ctx context.Context, userID uint) (int, error) {
+	executorType := txmanager.ExecutorFromContext(ctx, r.db)
+
+	var total int
+	err := executorType.QueryRowContext(ctx, `
+		SELECT COUNT(*)
+		FROM user_habit
+		WHERE user_id = $1`,
+		userID,
+	).Scan(&total)
+
+	return total, err
+}
+
+func (r *Repository) GetUserIDByUserHabitID(ctx context.Context, userHabitID uint) (uint, error) {
+	executorType := txmanager.ExecutorFromContext(ctx, r.db)
+
+	var userID uint
+	err := executorType.QueryRowContext(ctx, `
+		SELECT user_id
+		FROM user_habit
+		WHERE id = $1`,
+		userHabitID,
+	).Scan(&userID)
+
+	return userID, err
 }
 
 func listOrder(sortBy, sortOrder string) string {

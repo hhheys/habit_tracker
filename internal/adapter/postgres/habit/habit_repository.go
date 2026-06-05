@@ -52,7 +52,13 @@ func (r *Repository) List(ctx context.Context, filter domain.HabitListFilter) ([
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		closeErr := rows.Close()
+		if closeErr != nil {
+			r.log.Error("failed to close rows", zap.Error(closeErr))
+			return
+		}
+	}(rows)
 
 	habits := make([]*domain.Habit, 0)
 	for rows.Next() {
@@ -94,7 +100,12 @@ func (r *Repository) Create(ctx context.Context, h *domain.Habit) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func(tx *sql.Tx) {
+		rollbackErr := tx.Rollback()
+		if rollbackErr != nil {
+			r.log.Error("failed to rollback transaction", zap.Error(err))
+		}
+	}(tx)
 
 	err = tx.QueryRowContext(ctx, `
 		INSERT INTO habit (title, description, image_filename)
@@ -119,7 +130,12 @@ func (r *Repository) Update(ctx context.Context, h *domain.Habit, addTagIDs, rem
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func(tx *sql.Tx) {
+		rollbackErr := tx.Rollback()
+		if rollbackErr != nil {
+			r.log.Error("failed to rollback transaction", zap.Error(err))
+		}
+	}(tx)
 
 	result, err := tx.ExecContext(ctx, `
 		UPDATE habit
@@ -183,7 +199,12 @@ func (r *Repository) tagsByHabitID(ctx context.Context, habitID uint) ([]*domain
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		closeErr := rows.Close()
+		if closeErr != nil {
+			r.log.Error("failed to close rows", zap.Error(closeErr))
+		}
+	}(rows)
 	tags := make([]*domain.HabitTag, 0)
 	for rows.Next() {
 		var tag domain.HabitTag

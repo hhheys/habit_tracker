@@ -2,6 +2,7 @@ package outbox
 
 import (
 	"context"
+	"encoding/json"
 	"habit-tracker/internal/domain/events"
 	"sync"
 	"time"
@@ -10,10 +11,10 @@ import (
 )
 
 var AttemptSleepDuration []time.Duration = []time.Duration{
-	0,                // First attempt, no delay
-	time.Second * 10, // Second attempt, 3-second delay
-	time.Second * 30, // Third attempt, 5-second delay
-	time.Minute,      // Fourth attempt, 10-second delay
+	0,
+	time.Second * 10,
+	time.Second * 30,
+	time.Minute,
 	time.Minute * 5,
 	time.Minute * 15,
 }
@@ -88,11 +89,17 @@ func (p *EventPublisher) RunOnce(ctx context.Context) error {
 				wg.Done()
 			}()
 
+			eventPayload, err := json.Marshal(processEvent)
+			if err != nil {
+				p.logger.Error("failed to marshal event", zap.Error(err), zap.String("event_id", processEvent.EventID.String()))
+				return
+			}
+
 			publishErr := p.producer.Publish(
 				ctx,
 				p.topic,
 				processEvent.PartitionKey,
-				processEvent.Payload,
+				eventPayload,
 			)
 
 			if publishErr != nil {

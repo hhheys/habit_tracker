@@ -25,7 +25,7 @@ type habitResponse struct {
 func TestCreateHabitPermissions(t *testing.T) {
 	testApp := setupTestApp(t)
 
-	userTokens := registerUser(t, testApp.Router, "regular-user", "regular@example.com", "password123")
+	userTokens := registerUser(t, testApp.Router, "regular-user", "regular@example.com", "password123", "Europe/Moscow")
 	forbidden := createHabitRequest(t, testApp.Router, userTokens.AccessToken, "Forbidden habit", "Not allowed")
 	if forbidden.Code != http.StatusForbidden {
 		t.Fatalf("create habit as regular user: got status %d, body %s", forbidden.Code, forbidden.Body.String())
@@ -42,7 +42,7 @@ func TestCreateHabitPermissions(t *testing.T) {
 
 func TestCreateHabit(t *testing.T) {
 	testApp := setupTestApp(t)
-	adminTokens := registerAdmin(t, testApp, "admin-user", "admin@example.com", "password123")
+	adminTokens := registerAdmin(t, testApp, "admin-user", "admin@example.com", "password123", "Europe/Moscow")
 
 	created := createHabit(t, testApp.Router, adminTokens.AccessToken, "Drink water", "Drink enough water")
 
@@ -67,8 +67,8 @@ func TestCreateHabit(t *testing.T) {
 
 func TestGetAllHabits(t *testing.T) {
 	testApp := setupTestApp(t)
-	adminTokens := registerAdmin(t, testApp, "list-admin", "list-admin@example.com", "password123")
-	userTokens := registerUser(t, testApp.Router, "list-user", "list-user@example.com", "password123")
+	adminTokens := registerAdmin(t, testApp, "list-admin", "list-admin@example.com", "password123", "Europe/Moscow")
+	userTokens := registerUser(t, testApp.Router, "list-user", "list-user@example.com", "password123", "Europe/Moscow")
 
 	createHabit(t, testApp.Router, adminTokens.AccessToken, "Meditate", "Meditate daily")
 	createHabit(t, testApp.Router, adminTokens.AccessToken, "Read", "Read daily")
@@ -99,10 +99,10 @@ func TestGetAllHabits(t *testing.T) {
 	}
 }
 
-func registerAdmin(t *testing.T, testApp *TestApp, username, email, password string) AuthTokens {
+func registerAdmin(t *testing.T, testApp *TestApp, username, email, password, timezone string) AuthTokens {
 	t.Helper()
 
-	registerUser(t, testApp.Router, username, email, password)
+	registerUser(t, testApp.Router, username, email, password, timezone)
 	if _, err := testApp.DB.Exec(`UPDATE users SET role = 'admin' WHERE email = $1`, email); err != nil {
 		t.Fatalf("promote user to admin: %v", err)
 	}

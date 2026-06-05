@@ -9,6 +9,7 @@ type RegisterInput struct {
 	Username string
 	Email    string
 	Password string
+	Timezone string
 }
 
 type SessionInfoInput struct {

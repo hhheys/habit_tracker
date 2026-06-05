@@ -94,6 +94,11 @@ func (s *Service) Register(ctx context.Context, user *RegisterInput, session Ses
 		return nil, domain.ErrUserAlreadyExists
 	}
 
+	location, err := time.LoadLocation(user.Timezone)
+	if err != nil {
+		return nil, ErrInvalidTimezone
+	}
+
 	// Hash password
 	passwordHash, err := s.passwordHasher.HashPassword(user.Password)
 	if err != nil {
@@ -106,6 +111,7 @@ func (s *Service) Register(ctx context.Context, user *RegisterInput, session Ses
 		Email:    user.Email,
 		Password: passwordHash,
 		Role:     domain.UserRoleDefault,
+		Timezone: location,
 	}
 
 	err = s.users.Create(ctx, u)

@@ -2,11 +2,10 @@ package streak
 
 import (
 	"context"
-	"encoding/json"
 	"habit-tracker/internal/domain"
 	"habit-tracker/internal/domain/events"
+	"habit-tracker/internal/usecase/eventpublisher"
 	"strconv"
-	"time"
 )
 
 type Service struct {
@@ -15,8 +14,8 @@ type Service struct {
 	txManager      TXManager
 }
 
-func NewService(streak Repository, txManager TXManager) Service {
-	return Service{streak: streak, txManager: txManager}
+func NewService(streak Repository, publisher EventPublisher, txManager TXManager) Service {
+	return Service{streak: streak, eventPublisher: publisher, txManager: txManager}
 }
 
 func (s Service) CreateDailyConfirmation(ctx context.Context, input DailyConfirmationInput) (*domain.Streak, error) {
@@ -30,24 +29,13 @@ func (s Service) CreateDailyConfirmation(ctx context.Context, input DailyConfirm
 				return createErr
 			}
 
-			eventPayload, jsonErr := json.Marshal(streak)
-			if jsonErr != nil {
-				return jsonErr
-			}
-
-			event := events.Event{
-				OccurredAt:       time.Now().UTC(),
-				EventType:        events.EventTypeHabitStreakConfirmed,
-				EventTypeVersion: 1,
-				PartitionKey:     strconv.Itoa(int(input.UserID)),
-				Payload:          eventPayload,
-			}
-
-			createErr = s.eventPublisher.Publish(customContext, &event)
-			if createErr != nil {
-				return createErr
-			}
-			return nil
+			return eventpublisher.Publish(
+				customContext,
+				s.eventPublisher,
+				events.EventTypeHabitStreakConfirmed,
+				strconv.Itoa(int(input.UserID)),
+				streak,
+			)
 		},
 	)
 	if err != nil {

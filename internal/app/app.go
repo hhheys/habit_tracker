@@ -90,7 +90,7 @@ func NewAppWithDB(cfg config.Config, db *sql.DB) *App {
 		Config:  cfg,
 		Logger:  zapLogger,
 		JWT:     jwt,
-		Handler: v1handler.NewHandler(authService, habitService, userHabitService, &streakService, &tagService, zapLogger),
+		Handler: v1handler.NewHandler(authService, habitService, userHabitService, &streakService, &tagService, achievementService, zapLogger),
 
 		KafkaProducer:      kafkaProducer,
 		KafkaConsumer:      kafkaConsumer,

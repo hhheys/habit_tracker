@@ -59,6 +59,21 @@ func (s *Service) ProcessAchievements(
 	return s.processAchievements(ctx, userID, 0, metricKey)
 }
 
+func (s *Service) ListUserAchievements(ctx context.Context, params ListUserAchievementsParams) (*ListUserAchievementsOutput, error) {
+	achievements, total, err := s.userAchievement.ListUserAchievements(ctx, params.UserID, params.Limit, params.Offset)
+	if err != nil {
+		s.log.Error("failed to list user achievements", zap.Error(err), zap.Uint("user_id", params.UserID))
+		return nil, err
+	}
+
+	return &ListUserAchievementsOutput{
+		Achievements: achievements,
+		Limit:        params.Limit,
+		Offset:       params.Offset,
+		Total:        total,
+	}, nil
+}
+
 func (s *Service) processAchievements(
 	ctx context.Context,
 	userID uint,

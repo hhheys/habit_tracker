@@ -26,6 +26,10 @@ type GetUserHabitsRequest struct {
 	PageRequest
 }
 
+type GetAchievementsRequest struct {
+	PageRequest
+}
+
 type CreateTagRequest struct {
 	Name string `json:"title" binding:"required"`
 }

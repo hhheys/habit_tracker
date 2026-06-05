@@ -29,3 +29,9 @@ type UserAchievement struct {
 	Achievement Achievement
 	UnlockedAt  time.Time
 }
+
+type UserAchievementListItem struct {
+	Achievement *Achievement
+	Unlocked    bool
+	UnlockedAt  *time.Time
+}

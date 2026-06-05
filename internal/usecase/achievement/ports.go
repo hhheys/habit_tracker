@@ -9,6 +9,7 @@ import (
 type UserAchievementRepository interface {
 	// GetExpectedAchievements returns the expected achievements for a user based on their current metric
 	GetExpectedAchievements(ctx context.Context, userID uint, metricKey achievement.MetricKey) ([]*achievement.Achievement, error)
+	ListUserAchievements(ctx context.Context, userID uint, limit, offset int) ([]*achievement.UserAchievementListItem, int64, error)
 	UnlockUserAchievementByCode(ctx context.Context, userID uint, code string) (*achievement.UserAchievement, error)
 }
 

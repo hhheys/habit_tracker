@@ -23,5 +23,6 @@ func NewRouter(h handler.Handler, jwt *authadapter.JwtService, log *zap.Logger) 
 	r.GET("/_info", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{}) })
 	NewUserRouter(r, h)
 	NewHabitRouter(r, h, jwt)
+	NewAchievementRouter(r, h, jwt)
 	return r
 }

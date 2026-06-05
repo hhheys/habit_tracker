@@ -19,6 +19,69 @@ func NewRepository(db *sql.DB, log *zap.Logger) *Repository {
 	return &Repository{db: db, log: log}
 }
 
+func (r *Repository) ListUserAchievements(ctx context.Context, userID uint, limit, offset int) ([]*domainachievement.UserAchievementListItem, int64, error) {
+	executor := txmanager.ExecutorFromContext(ctx, r.db)
+
+	var total int64
+	if err := executor.QueryRowContext(ctx, `SELECT COUNT(*) FROM achievement`).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	rows, err := executor.QueryContext(ctx, `
+		SELECT
+			a.id,
+			a.code,
+			a.title,
+			COALESCE(a.description, ''),
+			a.enabled,
+			ua.unlocked_at
+		FROM achievement a
+		LEFT JOIN user_achievement ua ON ua.achievement_id = a.id AND ua.user_id = $1
+		ORDER BY a.code
+		LIMIT $2 OFFSET $3`,
+		userID,
+		limit,
+		offset,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil {
+			r.log.Error("failed to close user achievement rows", zap.Error(closeErr))
+		}
+	}()
+
+	result := make([]*domainachievement.UserAchievementListItem, 0)
+	for rows.Next() {
+		item := &domainachievement.UserAchievementListItem{
+			Achievement: &domainachievement.Achievement{},
+		}
+		var unlockedAt sql.NullTime
+		if err := rows.Scan(
+			&item.Achievement.ID,
+			&item.Achievement.Code,
+			&item.Achievement.Title,
+			&item.Achievement.Description,
+			&item.Achievement.Enabled,
+			&unlockedAt,
+		); err != nil {
+			return nil, 0, err
+		}
+		if unlockedAt.Valid {
+			item.Unlocked = true
+			item.UnlockedAt = &unlockedAt.Time
+		}
+		result = append(result, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	return result, total, nil
+}
+
 func (r *Repository) GetExpectedAchievements(ctx context.Context, userID uint, metricKey domainachievement.MetricKey) ([]*domainachievement.Achievement, error) {
 	executor := txmanager.ExecutorFromContext(ctx, r.db)
 

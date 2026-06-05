@@ -5,14 +5,18 @@ import (
 	"database/sql"
 	"errors"
 	"habit-tracker/internal/domain"
+
+	"go.uber.org/zap"
 )
 
 type Repository struct {
 	db *sql.DB
+
+	log *zap.Logger
 }
 
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(db *sql.DB, logger *zap.Logger) *Repository {
+	return &Repository{db: db, log: logger}
 }
 
 func (r *Repository) Create(ctx context.Context, tag *domain.HabitTag) error {
@@ -27,6 +31,7 @@ func (r *Repository) GetByID(ctx context.Context, id uint) (*domain.HabitTag, er
 		return nil, domain.ErrHabitNotFound
 	}
 	if err != nil {
+		r.log.Error("failed to get tag by ID", zap.Error(err), zap.Uint("tag_id", id))
 		return nil, err
 	}
 	return &tag, nil
@@ -41,6 +46,7 @@ func (r *Repository) Update(ctx context.Context, tag *domain.HabitTag) error {
 		return domain.ErrHabitNotFound
 	}
 	if err != nil {
+		r.log.Error("failed to update tag", zap.Error(err), zap.Uint("tag_id", tag.ID))
 		return err
 	}
 	return nil
@@ -49,10 +55,12 @@ func (r *Repository) Update(ctx context.Context, tag *domain.HabitTag) error {
 func (r *Repository) Delete(ctx context.Context, id uint) error {
 	result, err := r.db.ExecContext(ctx, `DELETE FROM tag WHERE id = $1`, id)
 	if err != nil {
+		r.log.Error("failed to delete tag", zap.Error(err), zap.Uint("tag_id", id))
 		return err
 	}
 	n, err := result.RowsAffected()
 	if err != nil {
+		r.log.Error("failed to delete tag", zap.Error(err), zap.Uint("tag_id", id))
 		return err
 	}
 	if n == 0 {
@@ -66,7 +74,12 @@ func (r *Repository) GetAll(ctx context.Context) ([]*domain.HabitTag, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		closeErr := rows.Close()
+		if closeErr != nil {
+			r.log.Error("failed to close tag rows", zap.Error(closeErr))
+		}
+	}(rows)
 	tags := make([]*domain.HabitTag, 0)
 	for rows.Next() {
 		var tag domain.HabitTag

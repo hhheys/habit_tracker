@@ -22,8 +22,9 @@ func TestLogin(t *testing.T) {
 		username = "test-user"
 		email    = "test@example.com"
 		password = "password123"
+		timezone = "Europe/Moscow"
 	)
-	registerUser(t, testApp.Router, username, email, password)
+	registerUser(t, testApp.Router, username, email, password, timezone)
 
 	tokens := loginUser(t, testApp.Router, email, password)
 	if tokens.AccessToken == "" || tokens.RefreshToken == "" {
@@ -67,13 +68,14 @@ func loginUser(t *testing.T, router *gin.Engine, email, password string) AuthTok
 	}
 }
 
-func registerUser(t *testing.T, router *gin.Engine, username, email, password string) AuthTokens {
+func registerUser(t *testing.T, router *gin.Engine, username, email, password, timezone string) AuthTokens {
 	t.Helper()
 
 	body, err := json.Marshal(map[string]string{
 		"username": username,
 		"email":    email,
 		"password": password,
+		"timezone": timezone,
 	})
 	if err != nil {
 		t.Fatalf("marshal register request: %v", err)

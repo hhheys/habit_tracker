@@ -8,14 +8,17 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 type Repository struct {
 	db *sql.DB
+
+	log *zap.Logger
 }
 
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(db *sql.DB, logger *zap.Logger) *Repository {
+	return &Repository{db: db, log: logger}
 }
 
 func (r *Repository) Create(ctx context.Context, session *domain.RefreshSession) error {
@@ -55,7 +58,12 @@ func (r *Repository) Rotate(ctx context.Context, tokenHash string, replacement *
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func(tx *sql.Tx) {
+		rollbackErr := tx.Rollback()
+		if rollbackErr != nil {
+			r.log.Error("failed to rollback transaction", zap.Error(err))
+		}
+	}(tx)
 
 	var current domain.RefreshSession
 	err = tx.QueryRowContext(ctx, `

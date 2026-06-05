@@ -1,6 +1,7 @@
 package handler
 
 import (
+	achievementuc "habit-tracker/internal/usecase/achievement"
 	authuc "habit-tracker/internal/usecase/auth"
 	habituc "habit-tracker/internal/usecase/habit"
 	streakuc "habit-tracker/internal/usecase/streak"
@@ -14,12 +15,14 @@ type Handler interface {
 	AuthHandler
 	HabitHandler
 	StreakHandler
+	AchievementHandler
 }
 
 type handlerImpl struct {
 	AuthHandler
 	HabitHandler
 	StreakHandler
+	AchievementHandler
 }
 
 func NewHandler(
@@ -28,11 +31,13 @@ func NewHandler(
 	userHabits *userhabituc.Service,
 	streaks *streakuc.Service,
 	tags *taguc.Service,
+	achievements *achievementuc.Service,
 	log *zap.Logger,
 ) Handler {
 	return &handlerImpl{
-		AuthHandler:   NewAuthHandler(auth, log),
-		HabitHandler:  NewHabitHandler(habits, userHabits, tags),
-		StreakHandler: NewStreakHandler(streaks),
+		AuthHandler:        NewAuthHandler(auth, log),
+		HabitHandler:       NewHabitHandler(habits, userHabits, tags),
+		StreakHandler:      NewStreakHandler(streaks),
+		AchievementHandler: NewAchievementHandler(achievements),
 	}
 }

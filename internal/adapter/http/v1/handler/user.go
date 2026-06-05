@@ -35,6 +35,7 @@ func (h *authHandler) Register(c *gin.Context) {
 		Username: req.Username,
 		Email:    req.Email,
 		Password: req.Password,
+		Timezone: req.Timezone,
 	}, sessionInfo(c))
 	if err != nil {
 		_ = c.Error(err)

@@ -3,15 +3,20 @@ package userhabit
 import (
 	"context"
 	"habit-tracker/internal/domain"
+	"habit-tracker/internal/domain/events"
+	"habit-tracker/internal/usecase/eventpublisher"
+	"strconv"
 )
 
 type Service struct {
-	userHabit Repository
-	streak    StreakRepository
+	userHabit      Repository
+	streak         StreakRepository
+	eventPublisher EventPublisher
+	txManager      TXManager
 }
 
-func NewService(userHabit Repository, streak StreakRepository) *Service {
-	return &Service{userHabit: userHabit, streak: streak}
+func NewService(userHabit Repository, streak StreakRepository, publisher EventPublisher, txManager TXManager) *Service {
+	return &Service{userHabit: userHabit, streak: streak, eventPublisher: publisher, txManager: txManager}
 }
 
 // Поскольку бизнес логика может быть разной в засимости от сущности, сделаю валидацию отдельной для каждого юзкейса
@@ -75,9 +80,28 @@ func (s *Service) Add(ctx context.Context, input AddUserHabitInput) (*domain.Use
 		UserID:  input.UserID,
 		HabitID: input.HabitID,
 	}
-	err := s.userHabit.CreateUserHabit(ctx, &h)
+
+	err := s.txManager.WithTx(
+		ctx,
+		func(customContext context.Context) error {
+			createErr := s.userHabit.CreateUserHabit(customContext, &h)
+			if createErr != nil {
+				return createErr
+			}
+
+			return eventpublisher.Publish(
+				customContext,
+				s.eventPublisher,
+				events.EventTypeUserHabitAdded,
+				strconv.Itoa(int(input.UserID)),
+				h,
+			)
+		},
+	)
+
 	if err != nil {
 		return nil, err
 	}
+
 	return &h, nil
 }

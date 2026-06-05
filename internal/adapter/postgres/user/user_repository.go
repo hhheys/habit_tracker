@@ -21,10 +21,10 @@ func NewRepository(db *sql.DB, log *zap.Logger) *Repository {
 
 func (r *Repository) Create(ctx context.Context, user *domain.User) error {
 	err := r.db.QueryRowContext(ctx, `
-		INSERT INTO users (username, email, password, role)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO users (username, email, password, role, timezone)
+		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, created_at, is_active`,
-		user.Username, user.Email, user.Password, user.Role,
+		user.Username, user.Email, user.Password, user.Role, user.Timezone.String(),
 	).Scan(&user.ID, &user.CreatedAt, &user.IsActive)
 	if isUniqueViolation(err) {
 		return domain.ErrUserAlreadyExists

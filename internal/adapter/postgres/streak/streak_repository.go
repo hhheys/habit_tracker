@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"habit-tracker/internal/adapter/postgres/txmanager"
 	"habit-tracker/internal/domain"
 
 	"github.com/lib/pq"
@@ -20,8 +21,10 @@ func NewRepository(db *sql.DB, log *zap.Logger) *Repository {
 }
 
 func (r *Repository) CreateDailyConfirmation(ctx context.Context, userID, habitID uint) (*domain.Streak, error) {
+	executorType := txmanager.ExecutorFromContext(ctx, r.db)
+
 	var userHabitID uint
-	err := r.db.QueryRowContext(ctx, `
+	err := executorType.QueryRowContext(ctx, `
 		SELECT id FROM user_habit WHERE user_id = $1 AND habit_id = $2`,
 		userID, habitID,
 	).Scan(&userHabitID)
@@ -31,7 +34,7 @@ func (r *Repository) CreateDailyConfirmation(ctx context.Context, userID, habitI
 	if err != nil {
 		return nil, err
 	}
-	_, err = r.db.ExecContext(ctx, `INSERT INTO daily_confirmation (user_habit_id) VALUES ($1)`, userHabitID)
+	_, err = executorType.ExecContext(ctx, `INSERT INTO daily_confirmation (user_habit_id) VALUES ($1)`, userHabitID)
 	var pqErr *pq.Error
 	if errors.As(err, &pqErr) && pqErr.Code == "23505" {
 		return nil, domain.ErrHabitAlreadyConfirmed
@@ -55,7 +58,12 @@ func (r *Repository) GetHeatmap(ctx context.Context, filter domain.HeatmapFilter
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		closeErr := rows.Close()
+		if closeErr != nil {
+			r.log.Error("failed to close rows", zap.Error(closeErr))
+		}
+	}(rows)
 	days := make([]*domain.HeatmapDay, 0)
 	for rows.Next() {
 		var day domain.HeatmapDay
@@ -68,10 +76,12 @@ func (r *Repository) GetHeatmap(ctx context.Context, filter domain.HeatmapFilter
 }
 
 func (r *Repository) GetStreak(ctx context.Context, userHabitID uint) (*domain.Streak, error) {
+	executorType := txmanager.ExecutorFromContext(ctx, r.db)
+
 	var streak domain.Streak
 	var current sql.NullInt64
 	streak.UserHabitID = userHabitID
-	err := r.db.QueryRowContext(ctx, `
+	err := executorType.QueryRowContext(ctx, `
 		WITH dates AS (
 			SELECT DISTINCT DATE(confirmed_at) AS day
 			FROM daily_confirmation WHERE user_habit_id = $1
@@ -102,7 +112,12 @@ func (r *Repository) GetUserStreaks(ctx context.Context, userID uint) ([]*domain
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+			r.log.Error("failed to close rows", zap.Error(err))
+		}
+	}(rows)
 	var ids []uint
 	for rows.Next() {
 		var id uint

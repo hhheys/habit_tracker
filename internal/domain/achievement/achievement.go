@@ -15,6 +15,8 @@ type Achievement struct {
 	Conditions  []Condition
 }
 
+// Condition represents a condition for an achievement.
+// Operator can be one of the following: "==", ">=", "<="
 type Condition struct {
 	MetricScope    MetricScope
 	RequiredMetric Metric

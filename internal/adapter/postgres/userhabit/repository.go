@@ -98,6 +98,20 @@ func (r *Repository) GetTotalUserHabits(ctx context.Context, userID uint) (int, 
 	return total, err
 }
 
+func (r *Repository) GetUserIDByUserHabitID(ctx context.Context, userHabitID uint) (uint, error) {
+	executorType := txmanager.ExecutorFromContext(ctx, r.db)
+
+	var userID uint
+	err := executorType.QueryRowContext(ctx, `
+		SELECT user_id
+		FROM user_habit
+		WHERE id = $1`,
+		userHabitID,
+	).Scan(&userID)
+
+	return userID, err
+}
+
 func listOrder(sortBy, sortOrder string) string {
 	column := map[string]string{
 		"title":      "h.title",

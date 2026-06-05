@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"database/sql"
+	pgachievement "habit-tracker/internal/adapter/postgres/achievement"
 	pghabit "habit-tracker/internal/adapter/postgres/habit"
 	pgmetric "habit-tracker/internal/adapter/postgres/metric"
 	pgoutbox "habit-tracker/internal/adapter/postgres/outbox"
@@ -23,6 +24,7 @@ type Repositories struct {
 	Tags            *pgtag.Repository
 	Outbox          *pgoutbox.Repository
 	Metrics         *pgmetric.Repository
+	Achievements    *pgachievement.Repository
 }
 
 func NewRepositories(db *sql.DB, log *zap.Logger) *Repositories {
@@ -35,5 +37,6 @@ func NewRepositories(db *sql.DB, log *zap.Logger) *Repositories {
 		Tags:            pgtag.NewRepository(db),
 		Outbox:          pgoutbox.NewRepository(db, log),
 		Metrics:         pgmetric.NewRepository(db, log),
+		Achievements:    pgachievement.NewRepository(db, log),
 	}
 }

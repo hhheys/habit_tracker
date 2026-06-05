@@ -23,7 +23,10 @@ func (e Event) GetEventID() uuid.UUID {
 }
 
 const (
-	EventTypeUserHabitAdded        EventType = "user_habit.added.v1"
+	EventTypeUserHabitAdded EventType = "user_habit.added.v1"
+
+	EventTypeUserAchievementUnlocked EventType = "user_achievement.unlocked.v1"
+
 	EventTypeHabitStreakConfirmed  EventType = "habit_streak.confirmed.v1"
 	EventTypeUserHabitMetricUpdate EventType = "user_habit_metric.updated.v1"
 )

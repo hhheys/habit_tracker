@@ -12,6 +12,7 @@ import (
 	kafkaadapter "habit-tracker/internal/adapter/kafka"
 	"habit-tracker/internal/adapter/postgres"
 	"habit-tracker/internal/adapter/postgres/txmanager"
+	achievementuc "habit-tracker/internal/usecase/achievement"
 	authuc "habit-tracker/internal/usecase/auth"
 	habituc "habit-tracker/internal/usecase/habit"
 	metricuc "habit-tracker/internal/usecase/metric"
@@ -39,10 +40,11 @@ type App struct {
 	JWT     *authadapter.JwtService
 	Handler v1handler.Handler
 
-	KafkaProducer   *kafkaadapter.Producer
-	KafkaConsumer   *kafkaadapter.Consumer
-	OutboxPublisher outboxworker.EventPublisher
-	MetricService   *metricuc.Metric
+	KafkaProducer      *kafkaadapter.Producer
+	KafkaConsumer      *kafkaadapter.Consumer
+	OutboxPublisher    outboxworker.EventPublisher
+	MetricService      *metricuc.Metric
+	AchievementService *achievementuc.Service
 }
 
 func NewApp(cfg config.Config) *App {
@@ -81,6 +83,7 @@ func NewAppWithDB(cfg config.Config, db *sql.DB) *App {
 	streakService := streakuc.NewService(repositories.Streaks, repositories.Outbox, txManager)
 	tagService := taguc.NewService(repositories.Tags)
 	metricService := metricuc.NewEventService(repositories.Metrics, txManager, repositories.Outbox, repositories.UserHabits, zapLogger)
+	achievementService := achievementuc.NewService(zapLogger, repositories.Achievements, repositories.Metrics, repositories.UserHabits, txManager, repositories.Outbox)
 
 	return &App{
 		DB:      db,
@@ -89,10 +92,11 @@ func NewAppWithDB(cfg config.Config, db *sql.DB) *App {
 		JWT:     jwt,
 		Handler: v1handler.NewHandler(authService, habitService, userHabitService, &streakService, &tagService, zapLogger),
 
-		KafkaProducer:   kafkaProducer,
-		KafkaConsumer:   kafkaConsumer,
-		OutboxPublisher: outboxPublisher,
-		MetricService:   metricService,
+		KafkaProducer:      kafkaProducer,
+		KafkaConsumer:      kafkaConsumer,
+		OutboxPublisher:    outboxPublisher,
+		MetricService:      metricService,
+		AchievementService: achievementService,
 	}
 }
 
@@ -128,6 +132,22 @@ func (app *App) Run() {
 			app.MetricService.ProcessEvent,
 		); err != nil && !errors.Is(err, context.Canceled) {
 			app.Logger.Error("metric event consumer stopped", zap.Error(err))
+		}
+	}()
+
+	go func() {
+		app.Logger.Info(
+			"starting achievement event consumer",
+			zap.Strings("brokers", app.Config.KafkaBrokers),
+			zap.String("topic", app.Config.KafkaOutboxTopic),
+		)
+		if err := app.KafkaConsumer.ConsumeEvents(
+			workerCtx,
+			app.Config.KafkaOutboxTopic,
+			"achievement-service",
+			app.AchievementService.ProcessEvent,
+		); err != nil && !errors.Is(err, context.Canceled) {
+			app.Logger.Error("achievement event consumer stopped", zap.Error(err))
 		}
 	}()
 

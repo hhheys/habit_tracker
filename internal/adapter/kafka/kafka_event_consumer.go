@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"habit-tracker/internal/domain/events"
+	"strings"
 	"sync"
 
 	"github.com/segmentio/kafka-go"
@@ -32,7 +33,8 @@ func (p *Consumer) getOrCreateReader(topic, groupID string) (*kafka.Reader, erro
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	reader, ok := p.readers[topic]
+	readerKey := strings.Join([]string{topic, groupID}, "\x00")
+	reader, ok := p.readers[readerKey]
 	if ok {
 		return reader, nil
 	}
@@ -43,7 +45,7 @@ func (p *Consumer) getOrCreateReader(topic, groupID string) (*kafka.Reader, erro
 		GroupID: groupID,
 	})
 
-	p.readers[topic] = reader
+	p.readers[readerKey] = reader
 
 	return reader, nil
 }
